@@ -1,0 +1,54 @@
+# Entornos virtuales
+venv/
+env/
+.venv/
+
+# Variables de entorno
+.env
+.env.local
+.env.*.local
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Logs
+*.log
+logs/
+
+# Archivos de base de datos locales
+*.sqlite3
+*.db
+
+# Alembic / migraciones temporales
+alembic/versions/*.pyc
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# MyPy / Ruff / tools
+.mypy_cache/
+.ruff_cache/
+.cache/
+
+# IDEs
+.vscode/
+.idea/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Archivos generados
+dist/
+build/
+*.egg-info/
+
+# Docker opcional
+docker-compose.override.yml
