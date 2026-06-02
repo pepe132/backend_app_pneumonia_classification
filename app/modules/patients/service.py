@@ -5,7 +5,14 @@ from app.modules.patients.models import Patient
 from app.modules.patients import schema
 
 def get_patients(db: Session, skip: int = 0, limit: int = 100) -> List[Patient]:
-    return db.query(Patient).filter(Patient.active == True).offset(skip).limit(limit).all()
+    return (
+        db.query(Patient)
+        .filter(Patient.active == True)
+        .order_by(Patient.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 def get_patient_by_id(db: Session, patient_id: str) -> Optional[Patient]:
     return db.query(Patient).filter(Patient.patient_id == patient_id).first()
