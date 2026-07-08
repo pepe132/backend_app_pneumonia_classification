@@ -17,5 +17,17 @@ SECRET_KEY = os.getenv("SECRET_KEY", "your-super-secret-key-here")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CNN_MODEL_PATH = os.getenv(
+    "CNN_MODEL_PATH",
+    os.path.join(BASE_DIR, "modules", "radiographs", "densenet121_clahe_finetuned_model.keras"),
+)
+RADIOGRAPH_UPLOAD_DIR = os.getenv(
+    "RADIOGRAPH_UPLOAD_DIR",
+    os.path.join(BASE_DIR, "uploads", "radiographs"),
+)
+RADIOGRAPH_MAX_SIZE_MB = int(os.getenv("RADIOGRAPH_MAX_SIZE_MB", "10"))
+CNN_MIN_CONFIDENCE = float(os.getenv("CNN_MIN_CONFIDENCE", "0.60"))
+
 if not SECRET_KEY:
     raise ValueError("SECRET_KEY no está configurada en el archivo .env")

@@ -13,6 +13,8 @@ class EvaluationBase(BaseModel):
     temperatura_c: float = Field(..., ge=30, le=45)
     spo2: int = Field(..., ge=0, le=100)
     tiraje: bool = False
+    retraccion_xifoidea: bool = False
+    disociacion_toracoabdominal: bool = False
     aleteo_nasal: bool = False
     quejido_espiratorio: bool = False
     cianosis: bool = False
@@ -44,6 +46,13 @@ class EvaluationResponse(EvaluationBase):
     prob_low: Optional[float] = None
     prob_medium: Optional[float] = None
     prob_high: Optional[float] = None
+    final_severity: Optional[str] = None
+    radiographic_support: Optional[str] = None
+    concordance: Optional[str] = None
+    fusion_basis: Optional[str] = None
+    fusion_explanation: Optional[str] = None
+    recommendation_code: Optional[str] = None
+    fusion_version: Optional[str] = None
     created_at: datetime
 
     class Config:

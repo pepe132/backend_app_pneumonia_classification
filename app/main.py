@@ -5,6 +5,7 @@ from app.core.config import APP_NAME, APP_VERSION
 from app.modules.auth.router import router as auth_router
 from app.modules.evaluations.router import router as evaluations_router
 from app.modules.patients.router import router as patients_router
+from app.modules.radiographs.router import router as radiographs_router
 
 
 app = FastAPI(
@@ -25,3 +26,4 @@ def health_db():
 app.include_router(auth_router)
 app.include_router(patients_router)
 app.include_router(evaluations_router)
+app.include_router(radiographs_router)

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.modules.evaluations.models import Evaluation
 from app.modules.evaluations import schema
+from app.modules.evaluations.fusion import fuse_results
 from app.modules.patients.models import Patient
 from app.modules.evaluations.predictor import predict_tabular_severity
 
@@ -57,6 +58,7 @@ def create_evaluation(
         return None
     
     prediction = predict_tabular_severity(evaluation_data)
+    integrated_result = fuse_results(prediction["severity_tabular"])
 
     new_evaluation = Evaluation(
         evaluation_id=str(uuid.uuid4()),
@@ -66,6 +68,13 @@ def create_evaluation(
         prob_low=prediction["prob_low"],
         prob_medium=prediction["prob_medium"],
         prob_high=prediction["prob_high"],
+        final_severity=integrated_result["final_severity"],
+        radiographic_support=integrated_result["radiographic_support"],
+        concordance=integrated_result["concordance"],
+        fusion_basis=integrated_result["basis"],
+        fusion_explanation=integrated_result["explanation"],
+        recommendation_code=integrated_result["recommendation_code"],
+        fusion_version=integrated_result["fusion_version"],
     )
     db.add(new_evaluation)
     db.commit()

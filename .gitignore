@@ -49,6 +49,8 @@ Thumbs.db
 dist/
 build/
 *.egg-info/
+app/uploads/
+*.keras
 
 # Docker opcional
 docker-compose.override.yml
