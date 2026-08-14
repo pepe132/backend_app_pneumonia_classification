@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.dependencies import require_roles
+from app.modules.auth.router import get_current_user
 from app.modules.evaluations import service as evaluation_service
 from app.modules.radiographs import schema, service
 from app.modules.radiographs.predictor import ImageModelUnavailableError
@@ -50,7 +51,7 @@ async def upload_radiograph(
 def get_radiograph(
     evaluation_id: str,
     db: Session = Depends(get_db),
-    current_user=Depends(require_roles([1, 2])),
+    current_user=Depends(get_current_user),
 ):
     evaluation = evaluation_service.get_evaluation_by_id(db, evaluation_id)
     if not evaluation:

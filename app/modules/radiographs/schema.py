@@ -55,6 +55,19 @@ class FusionResult(BaseModel):
     fusion_version: str
 
 
+class AuxiliaryDecisionResult(BaseModel):
+    clasificacion_auxiliar: str
+    prediccion_severidad: str
+    probabilidades_severidad: dict[str, float]
+    hallazgos_clinicos_relevantes: list[str]
+    resultado_radiografico_auxiliar: str
+    prediccion_radiografica: str
+    probabilidades_radiograficas: dict[str, float]
+    recomendacion: str
+    nota_seguridad: str
+
+
 class RadiographAnalysisResponse(BaseModel):
     radiograph: RadiographResponse
     integrated_result: FusionResult
+    auxiliary_decision: AuxiliaryDecisionResult

@@ -1,11 +1,11 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from typing import Optional
 from datetime import datetime
 
 
 class UserBase(BaseModel):
-    user_name: str
-    email: EmailStr
+    user_name: str = Field(..., max_length=40)
+    email: EmailStr = Field(..., max_length=50)
     role_id: int
 
 
@@ -19,15 +19,13 @@ class LoginRequest(BaseModel):
 
 
 class UserResponse(UserBase):
+    model_config = ConfigDict(from_attributes=True)
+
     user_id: str
     active: bool
     created_at: datetime
     updated_at: Optional[datetime] = None
     role_name: Optional[str] = None
-
-    class Config:
-        from_attributes = True
-
 
 class CurrentUserResponse(UserResponse):
     pass

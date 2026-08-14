@@ -12,9 +12,25 @@ from app.modules.evaluations.models import Evaluation
 from app.modules.radiographs.models import Radiograph
 from app.modules.radiographs.predictor import predict_radiograph
 from app.modules.radiographs.storage import delete_radiograph, save_radiograph
+from app.services.auxiliary_decision import generate_auxiliary_decision
 
 
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png"}
+SEVERITY_LABELS = {
+    "bajo": "Low",
+    "low": "Low",
+    "medio": "Moderate",
+    "moderate": "Moderate",
+    "medium": "Moderate",
+    "alto": "High",
+    "high": "High",
+}
+XRAY_LABELS = {
+    "covid_19": "COVID-19",
+    "normal": "Normal",
+    "pneumonia_bacterial": "Bacterial pneumonia",
+    "pneumonia_viral": "Viral pneumonia",
+}
 
 
 class RadiographAlreadyExistsError(ValueError):
@@ -102,14 +118,18 @@ async def analyze_radiograph(
         db.add(radiograph)
         db.commit()
         db.refresh(radiograph)
+        db.refresh(evaluation)
     except Exception:
         db.rollback()
         delete_radiograph(file_path)
         raise
 
+    auxiliary_decision = build_auxiliary_decision(evaluation, radiograph)
+
     return {
         "radiograph": serialize_radiograph(radiograph),
         "integrated_result": integrated_result,
+        "auxiliary_decision": auxiliary_decision,
     }
 
 
@@ -135,4 +155,83 @@ def serialize_radiograph(radiograph: Radiograph) -> dict:
         ),
         "model_version": radiograph.model_version,
         "created_at": radiograph.created_at,
+    }
+
+
+def build_auxiliary_decision(
+    evaluation: Evaluation,
+    radiograph: Radiograph,
+) -> dict:
+    clinical_result = {
+        "prediction": _normalize_severity_label(evaluation.severity_tabular),
+        "probabilities": {
+            "Low": evaluation.prob_low,
+            "Moderate": evaluation.prob_medium,
+            "High": evaluation.prob_high,
+        },
+    }
+    xray_result = {
+        "prediction": _normalize_xray_label(radiograph.image_class),
+        "probabilities": {
+            "COVID-19": radiograph.prob_covid,
+            "Normal": radiograph.prob_normal,
+            "Bacterial pneumonia": radiograph.prob_bacterial,
+            "Viral pneumonia": radiograph.prob_viral,
+        },
+    }
+
+    return generate_auxiliary_decision(
+        clinical_result=clinical_result,
+        xray_result=xray_result,
+        patient_data=_evaluation_to_patient_data(evaluation),
+    )
+
+
+def _normalize_severity_label(severity: str | None) -> str:
+    if not severity:
+        raise ValueError("La evaluación no contiene severidad clínica")
+
+    normalized = SEVERITY_LABELS.get(severity.strip().lower())
+    if not normalized:
+        raise ValueError(f"Severidad clínica no soportada: {severity}")
+    return normalized
+
+
+def _normalize_xray_label(image_class: str) -> str:
+    normalized = XRAY_LABELS.get(image_class)
+    if not normalized:
+        raise ValueError(f"Clase radiográfica no soportada: {image_class}")
+    return normalized
+
+
+def _evaluation_to_patient_data(evaluation: Evaluation) -> dict:
+    return {
+        "patient_id": evaluation.patient_id,
+        "edad_meses": evaluation.edad_meses,
+        "peso_kg": evaluation.peso_kg,
+        "spo2": evaluation.spo2,
+        "fr": evaluation.fr,
+        "fc": evaluation.fc,
+        "temperatura_c": evaluation.temperatura_c,
+        "tiraje": evaluation.tiraje,
+        "retraccion_xifoidea": evaluation.retraccion_xifoidea,
+        "disociacion_toracoabdominal": evaluation.disociacion_toracoabdominal,
+        "aleteo_nasal": evaluation.aleteo_nasal,
+        "quejido_espiratorio": evaluation.quejido_espiratorio,
+        "cianosis": evaluation.cianosis,
+        "apnea": evaluation.apnea,
+        "rechazo_comer": evaluation.rechazo_comer,
+        "vomita_todo": evaluation.vomita_todo,
+        "convulsiones": evaluation.convulsiones,
+        "glasgow": evaluation.glasgow,
+        "desnutricion": evaluation.desnutricion,
+        "antecedentes_cronicos": evaluation.antecedentes_cronicos,
+        "sibilancias": evaluation.sibilancias,
+        "dias_sintomas": evaluation.dias_sintomas,
+        "dias_fiebre": evaluation.dias_fiebre,
+        "dias_tos": evaluation.dias_tos,
+        "dias_dificultad_respiratoria": evaluation.dias_dificultad_respiratoria,
+        "crepitantes": evaluation.crepitantes,
+        "disminucion_murmullo_vesicular": evaluation.disminucion_murmullo_vesicular,
+        "dolor_toracico": evaluation.dolor_toracico,
     }

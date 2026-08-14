@@ -1,12 +1,12 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class EvaluationBase(BaseModel):
     patient_id: str = Field(..., max_length=40)
-    edad_meses: int = Field(..., ge=0, le=216)
+    edad_meses: int = Field(..., ge=0, le=72)
     peso_kg: float = Field(..., gt=0, le=150)
     fr: int = Field(..., ge=0, le=120)
     fc: int = Field(..., ge=0, le=250)
@@ -40,6 +40,8 @@ class EvaluationCreate(EvaluationBase):
 
 
 class EvaluationResponse(EvaluationBase):
+    model_config = ConfigDict(from_attributes=True)
+
     evaluation_id: str
     created_by: str
     severity_tabular: Optional[str] = None
@@ -54,6 +56,3 @@ class EvaluationResponse(EvaluationBase):
     recommendation_code: Optional[str] = None
     fusion_version: Optional[str] = None
     created_at: datetime
-
-    class Config:
-        from_attributes = True

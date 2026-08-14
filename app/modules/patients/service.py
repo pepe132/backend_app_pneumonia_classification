@@ -14,14 +14,22 @@ def get_patients(db: Session, skip: int = 0, limit: int = 100) -> List[Patient]:
         .all()
     )
 
-def get_patient_by_id(db: Session, patient_id: str) -> Optional[Patient]:
-    return db.query(Patient).filter(Patient.patient_id == patient_id).first()
+def get_patient_by_id(
+    db: Session,
+    patient_id: str,
+    *,
+    include_inactive: bool = False,
+) -> Optional[Patient]:
+    query = db.query(Patient).filter(Patient.patient_id == patient_id)
+    if not include_inactive:
+        query = query.filter(Patient.active == True)
+    return query.first()
 
 def create_patient(db: Session, patient_data: schema.PatientCreate, user_id: str) -> Patient:
     new_patient = Patient(
         patient_id=str(uuid.uuid4()),
         full_name=patient_data.full_name,
-        age=patient_data.age,
+        age_months=patient_data.age_months,
         sex=patient_data.sex,
         weight=patient_data.weight,
         height=patient_data.height,

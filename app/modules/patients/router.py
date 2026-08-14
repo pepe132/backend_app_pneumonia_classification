@@ -50,7 +50,7 @@ def update_patient(
     patient_id: str,
     patient_data: schema.PatientUpdate,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user = Depends(require_roles([1, 2]))
 ):
     patient = service.update_patient(db, patient_id, patient_data)
     if not patient:
@@ -61,7 +61,7 @@ def update_patient(
 def delete_patient(
     patient_id: str,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user = Depends(require_roles([1, 2]))
 ):
     success = service.delete_patient(db, patient_id)
     if not success:

@@ -1,6 +1,7 @@
 fastapi==0.133.1
 uvicorn==0.41.0
 SQLAlchemy==2.0.48
+alembic==1.16.5
 pymssql==2.3.13
 python-dotenv==1.2.2
 python-jose==3.5.0
