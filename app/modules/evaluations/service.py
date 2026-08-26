@@ -1,4 +1,6 @@
 import uuid
+import math
+from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy.orm import Session
@@ -80,3 +82,49 @@ def create_evaluation(
     db.commit()
     db.refresh(new_evaluation)
     return new_evaluation
+
+
+def get_evaluations_page(
+    db: Session,
+    *,
+    page: int,
+    page_size: int,
+    patient_id: str | None = None,
+    severity_tabular: str | None = None,
+    final_severity: str | None = None,
+    created_by: str | None = None,
+    has_radiograph: bool | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+) -> dict:
+    query = db.query(Evaluation)
+    if patient_id:
+        query = query.filter(Evaluation.patient_id == patient_id)
+    if severity_tabular:
+        query = query.filter(Evaluation.severity_tabular == severity_tabular)
+    if final_severity:
+        query = query.filter(Evaluation.final_severity == final_severity)
+    if created_by:
+        query = query.filter(Evaluation.created_by == created_by)
+    if has_radiograph is True:
+        query = query.filter(Evaluation.radiograph.has())
+    elif has_radiograph is False:
+        query = query.filter(~Evaluation.radiograph.has())
+    if date_from:
+        query = query.filter(Evaluation.created_at >= date_from)
+    if date_to:
+        query = query.filter(Evaluation.created_at <= date_to)
+
+    total = query.count()
+    column = getattr(Evaluation, sort_by)
+    query = query.order_by(column.asc() if sort_order == "asc" else column.desc())
+    items = query.offset((page - 1) * page_size).limit(page_size).all()
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "pages": math.ceil(total / page_size) if total else 0,
+    }

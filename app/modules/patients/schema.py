@@ -31,3 +31,11 @@ class PatientResponse(PatientBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
 
+
+class PatientPage(BaseModel):
+    items: list[PatientResponse]
+    total: int
+    page: int
+    page_size: int
+    pages: int
+

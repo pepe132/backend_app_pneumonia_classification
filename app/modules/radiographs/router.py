@@ -1,4 +1,7 @@
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -62,3 +65,29 @@ def get_radiograph(
         raise HTTPException(status_code=404, detail="Radiografía no encontrada")
 
     return service.serialize_radiograph(radiograph)
+
+
+@router.get("/{evaluation_id}/radiograph/image", response_class=FileResponse)
+def get_radiograph_image(
+    evaluation_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    evaluation = evaluation_service.get_evaluation_by_id(db, evaluation_id)
+    if not evaluation:
+        raise HTTPException(status_code=404, detail="Evaluación no encontrada")
+
+    radiograph = service.get_radiograph_by_evaluation(db, evaluation_id)
+    if not radiograph:
+        raise HTTPException(status_code=404, detail="Radiografía no encontrada")
+
+    image_path = Path(radiograph.file_path)
+    if not image_path.is_file():
+        raise HTTPException(status_code=404, detail="Archivo de radiografía no encontrado")
+
+    return FileResponse(
+        path=image_path,
+        media_type=radiograph.content_type,
+        filename=radiograph.original_filename,
+        content_disposition_type="inline",
+    )

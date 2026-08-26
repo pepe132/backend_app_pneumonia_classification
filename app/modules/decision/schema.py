@@ -75,3 +75,15 @@ class AuxiliaryDecisionRequest(BaseModel):
     clinical_result: ClinicalResult
     xray_result: XrayResult
     patient_data: PatientData
+
+
+class AuxiliaryDecisionResponse(BaseModel):
+    clasificacion_auxiliar: str
+    prediccion_severidad: str
+    probabilidades_severidad: dict[str, float]
+    hallazgos_clinicos_relevantes: list[str]
+    resultado_radiografico_auxiliar: str
+    prediccion_radiografica: str
+    probabilidades_radiograficas: dict[str, float]
+    recomendacion: str
+    nota_seguridad: str

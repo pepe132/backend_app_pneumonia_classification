@@ -22,6 +22,7 @@ def test_development_settings_keep_safe_defaults():
     assert settings.debug is False
     assert settings.log_level == "INFO"
     assert settings.cors_origins == []
+    assert settings.allow_public_registration is True
 
 
 def test_cors_origins_accept_comma_separated_or_json_list():
@@ -52,6 +53,11 @@ def test_cors_origins_accept_comma_separated_or_json_list():
             "app_env": "production",
             "secret_key": "cambia-este-valor-por-una-clave-segura",
         },
+        {
+            "app_env": "production",
+            "secret_key": "a" * 32,
+            "allow_public_registration": True,
+        },
     ],
 )
 def test_production_rejects_insecure_configuration(overrides):
@@ -67,12 +73,14 @@ def test_production_accepts_explicit_secure_configuration():
             debug=False,
             enable_docs=False,
             cors_origins=["https://app.example.com"],
+            allow_public_registration=False,
         )
     )
 
     assert settings.app_env == "production"
     assert settings.enable_docs is False
     assert settings.cors_origins == ["https://app.example.com"]
+    assert settings.allow_public_registration is False
 
 
 @pytest.mark.parametrize("field", ["db_server", "db_name", "db_user", "db_password", "secret_key"])

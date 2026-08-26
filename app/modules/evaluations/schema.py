@@ -56,3 +56,11 @@ class EvaluationResponse(EvaluationBase):
     recommendation_code: Optional[str] = None
     fusion_version: Optional[str] = None
     created_at: datetime
+
+
+class EvaluationPage(BaseModel):
+    items: list[EvaluationResponse]
+    total: int
+    page: int
+    page_size: int
+    pages: int

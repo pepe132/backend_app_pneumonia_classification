@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.core.dependencies import require_roles
 from app.modules.decision.schema import AuxiliaryDecisionRequest
 from app.services.auxiliary_decision import generate_auxiliary_decision
 
@@ -8,7 +9,10 @@ router = APIRouter(prefix="/decision", tags=["Decision"])
 
 
 @router.post("/auxiliary", status_code=status.HTTP_200_OK)
-def create_auxiliary_decision(request: AuxiliaryDecisionRequest):
+def create_auxiliary_decision(
+    request: AuxiliaryDecisionRequest,
+    current_user=Depends(require_roles([1, 2])),
+):
     try:
         return generate_auxiliary_decision(
             clinical_result=request.clinical_result.model_dump(by_alias=True),

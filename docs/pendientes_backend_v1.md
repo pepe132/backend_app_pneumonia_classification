@@ -255,3 +255,26 @@ Los pendientes del cliente React Native/Expo se encuentran en
 El frontend puede comenzar con autenticacion, pacientes, evaluaciones,
 radiografias y visualizacion de la fusion. Las recomendaciones y reglas de
 alarma deben mostrarse como provisionales hasta concluir la validacion clinica.
+
+## Actualizacion 2026-08-19: bloque de seguridad y usuarios
+
+Estado: implementado en codigo; pendiente aplicar migracion y ejecutar la suite
+completa en el entorno local.
+
+- `POST /decision/auxiliary` requiere administrador o especialista.
+- Administracion de usuarios disponible bajo `/auth/users`.
+- Cambio propio y restablecimiento administrativo de contrasena.
+- Imagen protegida en `GET /evaluations/{evaluation_id}/radiograph/image`.
+- Snapshot historico de la decision auxiliar en evaluaciones nuevas.
+- Consulta en `GET /evaluations/{evaluation_id}/auxiliary-decision`.
+- Migracion Alembic `20260819_0002` agregada.
+
+## Actualizacion 2026-08-19: consultas para frontend
+
+Estado: implementado en codigo; pendiente ejecutar la suite completa.
+
+- Paginacion, filtros y ordenamiento en `/patients/page`.
+- Paginacion, filtros y ordenamiento en `/evaluations/page`.
+- Reporte consolidado en `/reports/evaluations/{evaluation_id}`.
+- Dashboard en `/dashboard/summary`, con totales, distribuciones y tendencia.
+- Las rutas de listado anteriores se conservan por compatibilidad.

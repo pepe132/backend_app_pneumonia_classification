@@ -1,3 +1,4 @@
+import json
 import uuid
 from pathlib import Path
 from typing import Optional
@@ -113,6 +114,10 @@ async def analyze_radiograph(
     evaluation.fusion_explanation = integrated_result["explanation"]
     evaluation.recommendation_code = integrated_result["recommendation_code"]
     evaluation.fusion_version = integrated_result["fusion_version"]
+    auxiliary_decision = build_auxiliary_decision(evaluation, radiograph)
+    evaluation.auxiliary_decision_json = json.dumps(
+        auxiliary_decision, ensure_ascii=False
+    )
 
     try:
         db.add(radiograph)
@@ -123,8 +128,6 @@ async def analyze_radiograph(
         db.rollback()
         delete_radiograph(file_path)
         raise
-
-    auxiliary_decision = build_auxiliary_decision(evaluation, radiograph)
 
     return {
         "radiograph": serialize_radiograph(radiograph),

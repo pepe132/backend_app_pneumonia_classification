@@ -1,4 +1,6 @@
 import uuid
+import math
+from datetime import datetime
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.modules.patients.models import Patient
@@ -69,3 +71,50 @@ def search_patients(db: Session, query: str) -> List[Patient]:
         Patient.full_name.ilike(f"%{query}%"),
         Patient.active == True
     ).all()
+
+
+def get_patients_page(
+    db: Session,
+    *,
+    page: int,
+    page_size: int,
+    search: str | None = None,
+    sex: str | None = None,
+    active: bool | None = True,
+    min_age_months: int | None = None,
+    max_age_months: int | None = None,
+    created_by: str | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+) -> dict:
+    query = db.query(Patient)
+    if search:
+        query = query.filter(Patient.full_name.ilike(f"%{search.strip()}%"))
+    if sex:
+        query = query.filter(Patient.sex == sex)
+    if active is not None:
+        query = query.filter(Patient.active == active)
+    if min_age_months is not None:
+        query = query.filter(Patient.age_months >= min_age_months)
+    if max_age_months is not None:
+        query = query.filter(Patient.age_months <= max_age_months)
+    if created_by:
+        query = query.filter(Patient.created_by == created_by)
+    if date_from:
+        query = query.filter(Patient.created_at >= date_from)
+    if date_to:
+        query = query.filter(Patient.created_at <= date_to)
+
+    total = query.count()
+    column = getattr(Patient, sort_by)
+    query = query.order_by(column.asc() if sort_order == "asc" else column.desc())
+    items = query.offset((page - 1) * page_size).limit(page_size).all()
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "pages": math.ceil(total / page_size) if total else 0,
+    }

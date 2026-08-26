@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.config import settings
 from app.core.security import decode_access_token
 from app.modules.auth import schema, service
 
@@ -62,6 +63,15 @@ def get_current_user(
     return user
 
 
+def require_admin(current_user=Depends(get_current_user)):
+    if current_user.role_id != 1:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tiene permisos suficientes para realizar esta acción",
+        )
+    return current_user
+
+
 def validate_login(db: Session, login_data: schema.LoginRequest):
     user = service.authenticate_user(db, login_data)
 
@@ -71,12 +81,12 @@ def validate_login(db: Session, login_data: schema.LoginRequest):
         if db_user and not db_user.active:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="La cuenta de usuario esta inactiva"
+                detail="La cuenta de usuario está inactiva"
             )
 
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Correo o contrasena incorrectos",
+            detail="Correo o contraseña incorrectos",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -85,10 +95,15 @@ def validate_login(db: Session, login_data: schema.LoginRequest):
 
 @router.post("/register", response_model=schema.UserResponse)
 def register(user_data: schema.RegisterRequest, db: Session = Depends(get_db)):
+    if not settings.allow_public_registration:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="El registro público de usuarios está deshabilitado",
+        )
     if user_data.role_id == 1:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="No esta permitido registrar usuarios administradores desde este endpoint"
+            detail="No está permitido registrar usuarios administradores desde este endpoint"
         )
 
     role = service.get_role_by_id(db, user_data.role_id)
@@ -101,7 +116,7 @@ def register(user_data: schema.RegisterRequest, db: Session = Depends(get_db)):
     if service.get_user_by_email(db, user_data.email):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El correo ya esta registrado"
+            detail="El correo ya está registrado"
         )
 
     user = service.register_user(db, user_data)
@@ -137,3 +152,121 @@ async def token(request: Request, db: Session = Depends(get_db)):
 @router.get("/me", response_model=schema.CurrentUserResponse)
 def get_me(current_user=Depends(get_current_user)):
     return build_user_response(current_user)
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+def change_password(
+    password_data: schema.PasswordChangeRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    if not service.verify_password(
+        password_data.current_password, current_user.user_password
+    ):
+        raise HTTPException(status_code=400, detail="La contraseña actual es incorrecta")
+    if service.verify_password(password_data.new_password, current_user.user_password):
+        raise HTTPException(
+            status_code=409, detail="La nueva contraseña debe ser diferente"
+        )
+    service.set_user_password(db, current_user, password_data.new_password)
+    return None
+
+
+@router.get("/users", response_model=list[schema.UserResponse])
+def list_users(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    return [build_user_response(user) for user in service.get_users(db, skip, limit)]
+
+
+@router.get("/users/{user_id}", response_model=schema.UserResponse)
+def get_user(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    user = service.get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return build_user_response(user)
+
+
+@router.post(
+    "/users", response_model=schema.UserResponse, status_code=status.HTTP_201_CREATED
+)
+def create_user(
+    user_data: schema.AdminUserCreate,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    if service.get_user_by_email(db, user_data.email):
+        raise HTTPException(status_code=409, detail="El correo ya está registrado")
+    if not service.get_role_by_id(db, user_data.role_id):
+        raise HTTPException(status_code=400, detail="El rol especificado no existe")
+    return build_user_response(service.create_user_by_admin(db, user_data))
+
+
+@router.patch("/users/{user_id}", response_model=schema.UserResponse)
+def update_user(
+    user_id: str,
+    user_data: schema.AdminUserUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    user = service.get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if user_data.email is not None:
+        existing = service.get_user_by_email(db, user_data.email)
+        if existing and existing.user_id != user_id:
+            raise HTTPException(status_code=409, detail="El correo ya está registrado")
+    if user_data.role_id is not None and not service.get_role_by_id(db, user_data.role_id):
+        raise HTTPException(status_code=400, detail="El rol especificado no existe")
+    if user_id == current_user.user_id and (
+        user_data.active is False or user_data.role_id not in (None, 1)
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Un administrador no puede desactivar ni retirar su propio rol",
+        )
+    return build_user_response(service.update_user_by_admin(db, user, user_data))
+
+
+@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def deactivate_user(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    if user_id == current_user.user_id:
+        raise HTTPException(
+            status_code=409, detail="Un administrador no puede desactivarse a sí mismo"
+        )
+    user = service.get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    service.update_user_by_admin(db, user, schema.AdminUserUpdate(active=False))
+    return None
+
+
+@router.post(
+    "/users/{user_id}/reset-password", status_code=status.HTTP_204_NO_CONTENT
+)
+def reset_user_password(
+    user_id: str,
+    password_data: schema.PasswordResetRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    user = service.get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    if service.verify_password(password_data.new_password, user.user_password):
+        raise HTTPException(
+            status_code=409, detail="La nueva contraseña debe ser diferente"
+        )
+    service.set_user_password(db, user, password_data.new_password)
+    return None

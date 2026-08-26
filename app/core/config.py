@@ -44,6 +44,7 @@ class Settings(BaseModel):
     app_env: Literal["development", "testing", "production"] = "development"
     debug: bool = False
     enable_docs: bool = True
+    allow_public_registration: bool = True
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     cors_origins: list[str] = Field(default_factory=list)
 
@@ -94,6 +95,10 @@ class Settings(BaseModel):
                 )
             if "*" in self.cors_origins:
                 raise ValueError("CORS_ORIGINS no puede contener '*' en producción")
+            if self.allow_public_registration:
+                raise ValueError(
+                    "ALLOW_PUBLIC_REGISTRATION debe estar deshabilitado en producción"
+                )
         return self
 
     @classmethod
@@ -104,6 +109,7 @@ class Settings(BaseModel):
             app_env=os.getenv("APP_ENV", "development").lower(),
             debug=_env_bool("DEBUG", False),
             enable_docs=_env_bool("ENABLE_DOCS", True),
+            allow_public_registration=_env_bool("ALLOW_PUBLIC_REGISTRATION", True),
             log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
             cors_origins=os.getenv("CORS_ORIGINS", ""),
             db_server=os.getenv("DB_SERVER", ""),
@@ -136,6 +142,7 @@ APP_VERSION = settings.app_version
 APP_ENV = settings.app_env
 DEBUG = settings.debug
 ENABLE_DOCS = settings.enable_docs
+ALLOW_PUBLIC_REGISTRATION = settings.allow_public_registration
 LOG_LEVEL = settings.log_level
 CORS_ORIGINS = settings.cors_origins
 DB_SERVER = settings.db_server

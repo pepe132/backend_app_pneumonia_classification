@@ -2,6 +2,8 @@ import uuid
 
 import pytest
 
+from app.core.security import hash_password
+from app.modules.auth.models import User
 from app.modules.radiographs import service as radiograph_service
 from app.modules.radiographs import storage as radiograph_storage
 
@@ -36,6 +38,26 @@ def register_and_login(client, role_id, prefix):
     return register.json(), {
         "Authorization": f"Bearer {login.json()['access_token']}"
     }
+
+
+def create_admin_and_login(client, db_session):
+    email = unique_email("admin")
+    admin = User(
+        user_id=str(uuid.uuid4()),
+        user_name="QA_ADMIN",
+        email=email,
+        role_id=1,
+        active=True,
+        user_password=hash_password(TEST_PASSWORD),
+    )
+    db_session.add(admin)
+    db_session.commit()
+    login = client.post(
+        "/auth/login",
+        json={"email": email, "user_password": TEST_PASSWORD},
+    )
+    assert login.status_code == 200
+    return admin, {"Authorization": f"Bearer {login.json()['access_token']}"}
 
 
 def patient_payload(name=None):
@@ -124,6 +146,99 @@ def test_authentication_workflow_persists_inside_transaction(db_client):
     assert me.status_code == 200
     assert me.json()["email"] == email
 
+    versioned_me = db_client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert versioned_me.status_code == 200
+    assert versioned_me.json()["user_id"] == me.json()["user_id"]
+
+
+def test_auxiliary_decision_requires_clinical_write_role(
+    db_client, low_clinical_result, normal_xray_result, patient_data
+):
+    _, specialist_headers = register_and_login(
+        db_client, 2, "decision-specialist"
+    )
+    _, reader_headers = register_and_login(db_client, 3, "decision-reader")
+    payload = {
+        "clinical_result": low_clinical_result,
+        "xray_result": normal_xray_result,
+        "patient_data": patient_data,
+    }
+
+    forbidden = db_client.post(
+        "/decision/auxiliary", json=payload, headers=reader_headers
+    )
+    assert forbidden.status_code == 403
+
+    allowed = db_client.post(
+        "/decision/auxiliary", json=payload, headers=specialist_headers
+    )
+    assert allowed.status_code == 200
+    assert allowed.json()["prediccion_severidad"] == "Low"
+
+
+def test_admin_user_management_and_password_flows(db_client, db_session):
+    admin, admin_headers = create_admin_and_login(db_client, db_session)
+    _, specialist_headers = register_and_login(db_client, 2, "managed-specialist")
+
+    assert db_client.get("/auth/users", headers=specialist_headers).status_code == 403
+
+    email = unique_email("managed")
+    created = db_client.post(
+        "/auth/users",
+        headers=admin_headers,
+        json={
+            "user_name": "QA_MANAGED_USER",
+            "email": email,
+            "role_id": 3,
+            "user_password": TEST_PASSWORD,
+        },
+    )
+    assert created.status_code == 201
+    user_id = created.json()["user_id"]
+
+    updated = db_client.patch(
+        f"/auth/users/{user_id}",
+        headers=admin_headers,
+        json={"role_id": 2},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["role_id"] == 2
+
+    new_password = "NuevaSegura_2026!"
+    reset = db_client.post(
+        f"/auth/users/{user_id}/reset-password",
+        headers=admin_headers,
+        json={"new_password": new_password},
+    )
+    assert reset.status_code == 204
+    login = db_client.post(
+        "/auth/login", json={"email": email, "user_password": new_password}
+    )
+    assert login.status_code == 200
+    user_headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    changed_password = "OtraSegura_2026!"
+    changed = db_client.post(
+        "/auth/change-password",
+        headers=user_headers,
+        json={
+            "current_password": new_password,
+            "new_password": changed_password,
+        },
+    )
+    assert changed.status_code == 204
+
+    assert db_client.delete(
+        f"/auth/users/{admin.user_id}", headers=admin_headers
+    ).status_code == 409
+    assert db_client.delete(
+        f"/auth/users/{user_id}", headers=admin_headers
+    ).status_code == 204
+    assert db_client.get("/auth/me", headers=user_headers).status_code == 401
+
 
 def test_patient_crud_search_and_soft_delete(db_client):
     specialist, specialist_headers = register_and_login(
@@ -146,12 +261,26 @@ def test_patient_crud_search_and_soft_delete(db_client):
 
     get_patient = db_client.get(f"/patients/{patient_id}", headers=reader_headers)
     assert get_patient.status_code == 200
+    assert get_patient.json()["created_by"] == specialist["user_id"]
+    versioned_get = db_client.get(
+        f"/api/v1/patients/{patient_id}", headers=reader_headers
+    )
+    assert versioned_get.status_code == 200
 
     search = db_client.get(
         "/patients/search", params={"q": name}, headers=reader_headers
     )
     assert search.status_code == 200
     assert patient_id in {patient["patient_id"] for patient in search.json()}
+
+    page = db_client.get(
+        "/patients/page",
+        params={"search": name, "sex": "M", "page_size": 1},
+        headers=reader_headers,
+    )
+    assert page.status_code == 200
+    assert page.json()["total"] == 1
+    assert page.json()["items"][0]["patient_id"] == patient_id
 
     reader_update = db_client.patch(
         f"/patients/{patient_id}", json={"weight": 99}, headers=reader_headers
@@ -207,6 +336,30 @@ def test_evaluation_runs_model_and_persists_prediction(db_client):
     assert evaluation_id in {
         evaluation["evaluation_id"] for evaluation in history.json()
     }
+
+    page = db_client.get(
+        "/evaluations/page",
+        params={"patient_id": patient["patient_id"], "page_size": 1},
+        headers=reader_headers,
+    )
+    assert page.status_code == 200
+    assert page.json()["total"] == 1
+    assert page.json()["items"][0]["evaluation_id"] == evaluation_id
+
+    report = db_client.get(
+        f"/reports/evaluations/{evaluation_id}", headers=reader_headers
+    )
+    assert report.status_code == 200
+    assert report.json()["patient"]["patient_id"] == patient["patient_id"]
+    assert report.json()["radiograph"] is None
+
+    dashboard = db_client.get("/dashboard/summary", headers=reader_headers)
+    assert dashboard.status_code == 200
+    assert dashboard.json()["evaluations"] >= 1
+    assert any(
+        item["label"] == body["severity_tabular"]
+        for item in dashboard.json()["severity_tabular"]
+    )
 
 
 def test_radiograph_upload_uses_mocked_predictor_and_persists(
@@ -274,3 +427,32 @@ def test_radiograph_upload_uses_mocked_predictor_and_persists(
     )
     assert get_radiograph.status_code == 200
     assert get_radiograph.json()["model_version"] == "mock-cnn-v1"
+
+    image = db_client.get(
+        f"/evaluations/{evaluation_id}/radiograph/image", headers=reader_headers
+    )
+    assert image.status_code == 200
+    assert image.content == b"fake-image"
+    assert image.headers["content-type"] == "image/jpeg"
+
+    decision = db_client.get(
+        f"/evaluations/{evaluation_id}/auxiliary-decision",
+        headers=reader_headers,
+    )
+    assert decision.status_code == 200
+    assert decision.json() == body["auxiliary_decision"]
+
+    report = db_client.get(
+        f"/reports/evaluations/{evaluation_id}", headers=reader_headers
+    )
+    assert report.status_code == 200
+    assert report.json()["radiograph"]["image_class"] == "pneumonia_viral"
+    assert report.json()["auxiliary_decision"] == body["auxiliary_decision"]
+
+    filtered = db_client.get(
+        "/evaluations/page",
+        params={"patient_id": patient["patient_id"], "has_radiograph": True},
+        headers=reader_headers,
+    )
+    assert filtered.status_code == 200
+    assert filtered.json()["total"] == 1

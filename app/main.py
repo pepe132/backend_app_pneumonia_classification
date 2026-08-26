@@ -10,6 +10,9 @@ from app.modules.decision.router import router as decision_router
 from app.modules.evaluations.router import router as evaluations_router
 from app.modules.patients.router import router as patients_router
 from app.modules.radiographs.router import router as radiographs_router
+from app.modules.reports.router import router as reports_router
+from app.modules.dashboard.router import router as dashboard_router
+from app.api_v1 import router as api_v1_router
 
 
 configure_logging(settings.log_level)
@@ -49,3 +52,6 @@ app.include_router(patients_router)
 app.include_router(evaluations_router)
 app.include_router(radiographs_router)
 app.include_router(decision_router)
+app.include_router(reports_router)
+app.include_router(dashboard_router)
+app.include_router(api_v1_router)
