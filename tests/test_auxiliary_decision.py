@@ -32,6 +32,31 @@ def test_low_severity_without_alarms_returns_followup(
     assert "no sustituye" in result["nota_seguridad"].lower()
 
 
+def test_low_confidence_xray_does_not_influence_recommendation(
+    low_clinical_result,
+    normal_xray_result,
+    patient_data,
+):
+    normal_xray_result["prediction"] = "Viral pneumonia"
+    normal_xray_result["probabilities"] = {
+        "COVID-19": 0.10,
+        "Normal": 0.20,
+        "Bacterial pneumonia": 0.25,
+        "Viral pneumonia": 0.45,
+    }
+
+    result = generate_auxiliary_decision(
+        low_clinical_result,
+        normal_xray_result,
+        patient_data,
+        radiographic_evidence_reliable=False,
+    )
+
+    assert "confianza fue insuficiente" in result["resultado_radiografico_auxiliar"]
+    assert "seguimiento" in result["recomendacion"].lower()
+    assert "correlación médica" not in result["recomendacion"].lower()
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [("spo2", 89), ("cianosis", True), ("apnea", True), ("convulsiones", True), ("glasgow", 13)],

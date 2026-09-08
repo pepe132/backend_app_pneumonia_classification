@@ -206,6 +206,21 @@ Cerrado y validado el 2026-08-23 con `71 passed in 10.43s`.
 4. Definir politica tecnica de retencion de radiografias.
 5. Agregar migraciones, pruebas y documentacion del bloque.
 
+## Actualización 2026-09-07: confianza radiográfica y recomendación
+
+Estado: implementado y validado el 2026-09-07.
+
+- La clase y las probabilidades radiográficas se conservan para trazabilidad.
+- Una predicción CNN con confianza menor a `CNN_MIN_CONFIDENCE` se marca como
+  evidencia no confiable para la decisión auxiliar.
+- La evidencia radiográfica de baja confianza ya no intensifica ni modifica la
+  recomendación clínica.
+- Los signos de alarma y la severidad clínica continúan teniendo prioridad.
+- Se agregó una prueba unitaria para impedir regresiones de esta regla.
+- Suite relacionada ejecutada: `16 passed in 0.08s`.
+
+No se modificaron los modelos ML/CNN ni el esquema de base de datos.
+
 ## Comandos de control
 
 ```powershell
@@ -231,6 +246,7 @@ Documentos complementarios:
 
 - `docs/pendientes_backend_v1.md`: backlog funcional detallado.
 - `docs/backlog_pruebas_backend.md`: plan y evidencia de pruebas.
-- `docs/seguimiento_implementacion.md`: historial tecnico anterior.
+- `docs/historico/seguimiento_implementacion.md`: historial tecnico anterior.
 - `docs/matriz_reglas_clinicas_v1.md`: reglas clinicas provisionales.
-- `docs/pendientes_frontend_mobile_v1.md`: backlog del cliente movil.
+- `docs/historico/pendientes_frontend_mobile_v1.md`: backlog movil anterior;
+  el plan vigente vive en el repositorio hermano `mobile_app_pneumonia`.

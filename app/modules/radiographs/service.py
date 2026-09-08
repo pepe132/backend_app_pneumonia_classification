@@ -187,6 +187,10 @@ def build_auxiliary_decision(
         clinical_result=clinical_result,
         xray_result=xray_result,
         patient_data=_evaluation_to_patient_data(evaluation),
+        radiographic_evidence_reliable=(
+            radiograph.confidence is not None
+            and radiograph.confidence >= CNN_MIN_CONFIDENCE
+        ),
     )
 
 

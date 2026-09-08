@@ -249,8 +249,10 @@ Pendiente:
 
 ## Relacion con el frontend movil
 
-Los pendientes del cliente React Native/Expo se encuentran en
-`docs/pendientes_frontend_mobile_v1.md`.
+El plan vigente del cliente React Native/Expo se mantiene en el repositorio
+hermano `mobile_app_pneumonia/docs/plan_implementacion_frontend.md`. El backlog
+móvil anterior se conserva en
+`docs/historico/pendientes_frontend_mobile_v1.md` únicamente como referencia.
 
 El frontend puede comenzar con autenticacion, pacientes, evaluaciones,
 radiografias y visualizacion de la fusion. Las recomendaciones y reglas de

@@ -92,6 +92,6 @@ Access the documentation at:
 
 ## Project Documents
 Refer to the `docs/` directory for detailed information:
-- `arquitectura_clean_code_backend_v2.md`: Detailed architecture rules.
-- `guia_desarrollo_app_neumonia_v2.md`: Step-by-step development guide.
-- `contexto_app_neumonia_pediatrica_v2.md`: Business context and goals.
+- `docs/historico/arquitectura_clean_code_backend_v2.md`: Historical architecture rules.
+- `docs/historico/guia_desarrollo_app_neumonia_v2.md`: Historical development guide.
+- `docs/historico/contexto_app_neumonia_pediatrica_v2.md`: Business context and goals.

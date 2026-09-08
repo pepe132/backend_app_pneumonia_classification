@@ -254,12 +254,16 @@ def generate_recommendation(
     clinical_prediction: ClinicalPrediction,
     xray_prediction: RadiographicPrediction,
     warning_signs: bool,
+    radiographic_evidence_reliable: bool = True,
 ) -> str:
     if clinical_prediction == "High" or warning_signs:
         return URGENT_RECOMMENDATION
 
     if clinical_prediction == "Moderate":
-        if xray_prediction in PNEUMONIA_XRAY_CLASSES:
+        if (
+            radiographic_evidence_reliable
+            and xray_prediction in PNEUMONIA_XRAY_CLASSES
+        ):
             return (
                 "Se recomienda valoración médica y vigilancia estrecha. Los hallazgos "
                 "radiográficos deben correlacionarse con los signos clínicos."
@@ -269,7 +273,10 @@ def generate_recommendation(
             "empeoran o aparecen signos de alarma."
         )
 
-    if xray_prediction in PNEUMONIA_XRAY_CLASSES:
+    if (
+        radiographic_evidence_reliable
+        and xray_prediction in PNEUMONIA_XRAY_CLASSES
+    ):
         return (
             "Se estimó baja severidad clínica, pero el modelo radiográfico sugiere un "
             "patrón compatible con neumonía. Se recomienda correlación médica."
@@ -285,6 +292,7 @@ def generate_auxiliary_decision(
     clinical_result: Mapping[str, Any],
     xray_result: Mapping[str, Any],
     patient_data: Mapping[str, Any],
+    radiographic_evidence_reliable: bool = True,
 ) -> dict[str, Any]:
     if not isinstance(patient_data, Mapping):
         raise ValueError("patient_data debe ser un objeto")
@@ -299,13 +307,21 @@ def generate_auxiliary_decision(
         "prediccion_severidad": clinical_result["prediction"],
         "probabilidades_severidad": dict(clinical_result["probabilities"]),
         "hallazgos_clinicos_relevantes": findings,
-        "resultado_radiografico_auxiliar": format_radiographic_result(xray_result),
+        "resultado_radiografico_auxiliar": (
+            format_radiographic_result(xray_result)
+            if radiographic_evidence_reliable
+            else (
+                "El modelo analizó la radiografía, pero su confianza fue insuficiente. "
+                "El resultado radiográfico no modifica la recomendación clínica."
+            )
+        ),
         "prediccion_radiografica": xray_result["prediction"],
         "probabilidades_radiograficas": dict(xray_result["probabilities"]),
         "recomendacion": generate_recommendation(
             clinical_prediction=clinical_result["prediction"],
             xray_prediction=xray_result["prediction"],
             warning_signs=warning_signs,
+            radiographic_evidence_reliable=radiographic_evidence_reliable,
         ),
         "nota_seguridad": SAFETY_NOTE,
     }

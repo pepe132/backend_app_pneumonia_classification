@@ -49,9 +49,9 @@ y `LECTURA`.
 
 ## Scripts SQL anteriores
 
-Los archivos `scripts/001_*.sql` a `scripts/004_*.sql` se conservan como
-histórico de la etapa previa a Alembic. No deben ejecutarse junto con la
-migración base sobre una base nueva.
+Los archivos `scripts/legacy/001_*.sql` a `scripts/legacy/004_*.sql` se
+conservan como histórico de la etapa previa a Alembic. No deben ejecutarse
+junto con la migración base sobre una base nueva.
 
 ## Reglas operativas
 

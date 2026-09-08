@@ -13,7 +13,7 @@ contratos actuales se tratarán como provisionales y la lógica clínica seguir�
 perteneciendo al backend.
 
 El corte actualizado de módulos, endpoints, pruebas y pendientes del servidor
-se encuentra en `docs/seguimiento_implementacion.md`. El detalle de trabajo aún
+se conserva en `docs/historico/seguimiento_implementacion.md`. El detalle de trabajo aún
 pendiente se mantiene en `docs/pendientes_backend_v1.md`.
 
 ## Stack propuesto
