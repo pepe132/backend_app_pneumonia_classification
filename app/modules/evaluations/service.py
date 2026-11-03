@@ -1,3 +1,4 @@
+import json
 import uuid
 import math
 from datetime import datetime
@@ -10,6 +11,7 @@ from app.modules.evaluations import schema
 from app.modules.evaluations.fusion import fuse_results
 from app.modules.patients.models import Patient
 from app.modules.evaluations.predictor import predict_tabular_severity
+from app.services.auxiliary_decision import generate_clinical_only_decision
 
 
 def get_evaluations(db: Session, skip: int = 0, limit: int = 100) -> List[Evaluation]:
@@ -61,6 +63,22 @@ def create_evaluation(
     
     prediction = predict_tabular_severity(evaluation_data)
     integrated_result = fuse_results(prediction["severity_tabular"])
+    severity_for_rules = {
+        "Bajo": "Low",
+        "Medio": "Moderate",
+        "Alto": "High",
+    }.get(prediction["severity_tabular"], prediction["severity_tabular"])
+    clinical_only_decision = generate_clinical_only_decision(
+        clinical_result={
+            "prediction": severity_for_rules,
+            "probabilities": {
+                "Low": prediction["prob_low"],
+                "Moderate": prediction["prob_medium"],
+                "High": prediction["prob_high"],
+            },
+        },
+        patient_data=evaluation_data.model_dump(),
+    )
 
     new_evaluation = Evaluation(
         evaluation_id=str(uuid.uuid4()),
@@ -77,6 +95,10 @@ def create_evaluation(
         fusion_explanation=integrated_result["explanation"],
         recommendation_code=integrated_result["recommendation_code"],
         fusion_version=integrated_result["fusion_version"],
+        auxiliary_decision_json=json.dumps(
+            clinical_only_decision,
+            ensure_ascii=False,
+        ),
     )
     db.add(new_evaluation)
     db.commit()

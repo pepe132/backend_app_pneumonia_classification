@@ -13,7 +13,10 @@ from app.modules.evaluations.models import Evaluation
 from app.modules.radiographs.models import Radiograph
 from app.modules.radiographs.predictor import predict_radiograph
 from app.modules.radiographs.storage import delete_radiograph, save_radiograph
-from app.services.auxiliary_decision import generate_auxiliary_decision
+from app.services.auxiliary_decision import (
+    generate_auxiliary_decision,
+    generate_clinical_only_decision,
+)
 
 
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png"}
@@ -191,6 +194,21 @@ def build_auxiliary_decision(
             radiograph.confidence is not None
             and radiograph.confidence >= CNN_MIN_CONFIDENCE
         ),
+    )
+
+
+def build_clinical_only_auxiliary_decision(evaluation: Evaluation) -> dict:
+    clinical_result = {
+        "prediction": _normalize_severity_label(evaluation.severity_tabular),
+        "probabilities": {
+            "Low": evaluation.prob_low,
+            "Moderate": evaluation.prob_medium,
+            "High": evaluation.prob_high,
+        },
+    }
+    return generate_clinical_only_decision(
+        clinical_result=clinical_result,
+        patient_data=_evaluation_to_patient_data(evaluation),
     )
 
 

@@ -40,6 +40,10 @@ def get_evaluation_report(
         auxiliary_decision = radiograph_service.build_auxiliary_decision(
             evaluation, radiograph
         )
+    elif evaluation.severity_tabular:
+        auxiliary_decision = radiograph_service.build_clinical_only_auxiliary_decision(
+            evaluation
+        )
 
     return {
         "report_version": "1.0",
@@ -54,6 +58,7 @@ def get_evaluation_report(
             "explanation": evaluation.fusion_explanation,
             "recommendation_code": evaluation.recommendation_code,
             "fusion_version": evaluation.fusion_version,
+            "fusion_method": "rules",
         },
         "radiograph": (
             radiograph_service.serialize_radiograph(radiograph)

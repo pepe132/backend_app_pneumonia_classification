@@ -1,5 +1,7 @@
 from typing import Any, Mapping
 
+from app.modules.evaluations.fusion import FUSION_METHOD, FUSION_VERSION
+
 
 ClinicalPrediction = str
 RadiographicPrediction = str
@@ -26,6 +28,7 @@ SAFETY_NOTE = (
     "Este resultado es un apoyo auxiliar a la decisión clínica y no sustituye "
     "el juicio médico."
 )
+RECOMMENDATION_VERSION = "MX-GPC-WHO-draft-1"
 
 
 def _get_numeric_value(
@@ -152,18 +155,19 @@ def has_warning_signs(patient_data: Mapping[str, Any]) -> bool:
 
 def validate_model_results(
     clinical_result: Mapping[str, Any],
-    xray_result: Mapping[str, Any],
+    xray_result: Mapping[str, Any] | None = None,
 ) -> None:
     _validate_single_model_result(
         result=clinical_result,
         expected_classes=CLINICAL_CLASSES,
         result_name="clinical_result",
     )
-    _validate_single_model_result(
-        result=xray_result,
-        expected_classes=XRAY_CLASSES,
-        result_name="xray_result",
-    )
+    if xray_result is not None:
+        _validate_single_model_result(
+            result=xray_result,
+            expected_classes=XRAY_CLASSES,
+            result_name="xray_result",
+        )
 
 
 def _validate_single_model_result(
@@ -250,6 +254,69 @@ def format_radiographic_result(xray_result: Mapping[str, Any]) -> str:
     return f"Patrón radiográfico compatible con COVID-19 ({probability:.2%})."
 
 
+def identify_triggered_rules(patient_data: Mapping[str, Any]) -> list[str]:
+    """Return stable IDs for the currently implemented safety rules.
+
+    The clinical rule matrix is still a draft pending medical approval. IDs are
+    separated from user-facing text so each decision remains auditable.
+    """
+    edad_meses = int(_get_numeric_value(patient_data, "edad_meses"))
+    fr = _get_numeric_value(patient_data, "fr")
+    rules: list[str] = []
+
+    if _get_numeric_value(patient_data, "spo2") < 90:
+        rules.append("ALARM-001")
+    if _get_binary_value(patient_data, "cianosis") == 1:
+        rules.append("ALARM-002")
+    if _get_binary_value(patient_data, "apnea") == 1:
+        rules.append("ALARM-003")
+    if _get_binary_value(patient_data, "convulsiones") == 1:
+        rules.append("ALARM-004")
+    if _get_binary_value(patient_data, "rechazo_comer") == 1:
+        rules.append("ALARM-005")
+    if _get_optional_binary_value(patient_data, "vomita_todo") == 1:
+        rules.append("ALARM-006")
+    if _get_numeric_value(patient_data, "glasgow") < 14:
+        rules.append("ALARM-007")
+    if is_elevated_respiratory_rate(edad_meses, fr) and _get_binary_value(
+        patient_data, "tiraje"
+    ) == 1:
+        rules.append("RESP-001")
+    if _get_binary_value(patient_data, "quejido_espiratorio") == 1:
+        rules.append("RESP-002")
+    return rules
+
+
+def derive_care_level(
+    clinical_prediction: ClinicalPrediction,
+    triggered_rules: list[str],
+    *,
+    xray_prediction: RadiographicPrediction | None = None,
+    radiographic_evidence_reliable: bool = False,
+) -> str:
+    urgent_rules = {
+        "ALARM-001",
+        "ALARM-002",
+        "ALARM-003",
+        "ALARM-004",
+        "ALARM-006",
+        "ALARM-007",
+        "RESP-001",
+    }
+    if clinical_prediction == "High" or urgent_rules.intersection(triggered_rules):
+        return "CARE-URGENT"
+    if "ALARM-005" in triggered_rules or "RESP-002" in triggered_rules:
+        return "CARE-PRIORITY"
+    if clinical_prediction == "Moderate":
+        return "CARE-PRIORITY" if (
+            radiographic_evidence_reliable
+            and xray_prediction in PNEUMONIA_XRAY_CLASSES
+        ) else "CARE-REASSESS"
+    if radiographic_evidence_reliable and xray_prediction in PNEUMONIA_XRAY_CLASSES:
+        return "CARE-REASSESS"
+    return "CARE-FOLLOWUP"
+
+
 def generate_recommendation(
     clinical_prediction: ClinicalPrediction,
     xray_prediction: RadiographicPrediction,
@@ -301,6 +368,15 @@ def generate_auxiliary_decision(
 
     findings = identify_clinical_findings(patient_data)
     warning_signs = has_warning_signs(patient_data)
+    xray_prediction = xray_result["prediction"] if xray_result else None
+    reliable_xray = radiographic_evidence_reliable and xray_result is not None
+    triggered_rules = identify_triggered_rules(patient_data)
+    care_level = derive_care_level(
+        clinical_prediction=clinical_result["prediction"],
+        triggered_rules=triggered_rules,
+        xray_prediction=xray_prediction,
+        radiographic_evidence_reliable=reliable_xray,
+    )
 
     return {
         "clasificacion_auxiliar": format_auxiliary_classification(clinical_result),
@@ -324,4 +400,53 @@ def generate_auxiliary_decision(
             radiographic_evidence_reliable=radiographic_evidence_reliable,
         ),
         "nota_seguridad": SAFETY_NOTE,
+        "nivel_atencion": care_level,
+        "reglas_activadas": triggered_rules,
+        "recommendation_version": RECOMMENDATION_VERSION,
+        "fusion_method": FUSION_METHOD,
+        "fusion_version": FUSION_VERSION,
+    }
+
+
+def generate_clinical_only_decision(
+    clinical_result: Mapping[str, Any],
+    patient_data: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Generate the same contract when the optional radiograph is absent."""
+    if not isinstance(patient_data, Mapping):
+        raise ValueError("patient_data debe ser un objeto")
+
+    validate_model_results(clinical_result, None)
+    findings = identify_clinical_findings(patient_data)
+    triggered_rules = identify_triggered_rules(patient_data)
+    care_level = derive_care_level(
+        clinical_prediction=clinical_result["prediction"],
+        triggered_rules=triggered_rules,
+    )
+
+    return {
+        "clasificacion_auxiliar": format_auxiliary_classification(clinical_result),
+        "prediccion_severidad": clinical_result["prediction"],
+        "probabilidades_severidad": dict(clinical_result["probabilities"]),
+        "hallazgos_clinicos_relevantes": findings,
+        "resultado_radiografico_auxiliar": (
+            "No se proporcionÃ³ una radiografÃ­a; la decisiÃ³n usa datos clÃ­nicos."
+        ),
+        "prediccion_radiografica": None,
+        "probabilidades_radiograficas": None,
+        "recomendacion": generate_recommendation(
+            clinical_prediction=clinical_result["prediction"],
+            xray_prediction=None,
+            warning_signs=bool(
+                {"ALARM-001", "ALARM-002", "ALARM-003", "ALARM-004", "ALARM-006", "ALARM-007", "RESP-001"}
+                .intersection(triggered_rules)
+            ),
+            radiographic_evidence_reliable=False,
+        ),
+        "nota_seguridad": SAFETY_NOTE,
+        "nivel_atencion": care_level,
+        "reglas_activadas": triggered_rules,
+        "recommendation_version": RECOMMENDATION_VERSION,
+        "fusion_method": FUSION_METHOD,
+        "fusion_version": FUSION_VERSION,
     }

@@ -2,6 +2,7 @@ import pytest
 
 from app.services.auxiliary_decision import (
     generate_auxiliary_decision,
+    generate_clinical_only_decision,
     is_elevated_respiratory_rate,
 )
 
@@ -110,3 +111,28 @@ def test_missing_model_probability_is_rejected(
             normal_xray_result,
             patient_data,
         )
+
+
+def test_clinical_only_decision_has_fusion_metadata(
+    low_clinical_result,
+    patient_data,
+):
+    result = generate_clinical_only_decision(low_clinical_result, patient_data)
+
+    assert result["prediccion_radiografica"] is None
+    assert result["fusion_method"] == "rules"
+    assert result["nivel_atencion"] == "CARE-FOLLOWUP"
+    assert result["reglas_activadas"] == []
+
+
+def test_warning_rule_is_traceable(
+    low_clinical_result,
+    patient_data,
+):
+    patient_data.update({"spo2": 88, "tiraje": True, "fr": 50})
+
+    result = generate_clinical_only_decision(low_clinical_result, patient_data)
+
+    assert "ALARM-001" in result["reglas_activadas"]
+    assert "RESP-001" in result["reglas_activadas"]
+    assert result["nivel_atencion"] == "CARE-URGENT"

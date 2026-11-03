@@ -83,7 +83,12 @@ class AuxiliaryDecisionResponse(BaseModel):
     probabilidades_severidad: dict[str, float]
     hallazgos_clinicos_relevantes: list[str]
     resultado_radiografico_auxiliar: str
-    prediccion_radiografica: str
-    probabilidades_radiograficas: dict[str, float]
+    prediccion_radiografica: str | None = None
+    probabilidades_radiograficas: dict[str, float] | None = None
     recomendacion: str
     nota_seguridad: str
+    nivel_atencion: str
+    reglas_activadas: list[str]
+    recommendation_version: str
+    fusion_method: str
+    fusion_version: str

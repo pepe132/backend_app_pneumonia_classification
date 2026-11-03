@@ -114,6 +114,8 @@ def get_evaluation_auxiliary_decision(
         return radiograph_service.build_auxiliary_decision(
             evaluation, evaluation.radiograph
         )
+    if evaluation.severity_tabular:
+        return radiograph_service.build_clinical_only_auxiliary_decision(evaluation)
     raise HTTPException(
         status_code=404,
         detail="La evaluación no tiene una decisión auxiliar disponible",

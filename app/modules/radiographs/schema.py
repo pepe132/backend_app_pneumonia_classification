@@ -53,6 +53,7 @@ class FusionResult(BaseModel):
     explanation: str
     recommendation_code: str
     fusion_version: str
+    fusion_method: str
 
 
 class AuxiliaryDecisionResult(BaseModel):
@@ -65,6 +66,11 @@ class AuxiliaryDecisionResult(BaseModel):
     probabilidades_radiograficas: dict[str, float]
     recomendacion: str
     nota_seguridad: str
+    nivel_atencion: str
+    reglas_activadas: list[str]
+    recommendation_version: str
+    fusion_method: str
+    fusion_version: str
 
 
 class RadiographAnalysisResponse(BaseModel):

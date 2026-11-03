@@ -1,7 +1,8 @@
 from typing import Optional
 
 
-FUSION_VERSION = "rules-v1.0"
+FUSION_VERSION = "rules-v1.1"
+FUSION_METHOD = "rules"
 
 
 def _recommendation_code(severity: str) -> str:
@@ -18,6 +19,7 @@ def fuse_results(
         "final_severity": tabular_severity,
         "recommendation_code": _recommendation_code(tabular_severity),
         "fusion_version": FUSION_VERSION,
+        "fusion_method": FUSION_METHOD,
     }
 
     if image_class is None:
