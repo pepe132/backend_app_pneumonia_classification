@@ -52,7 +52,7 @@ Gestionar pacientes pediátricos.
 
 - patient_id.
 - full_name o identificador.
-- age.
+- age_months (edad en meses cumplidos, de 0 a 72).
 - sex.
 - weight.
 - height.

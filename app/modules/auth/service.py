@@ -1,5 +1,5 @@
 import uuid
-from typing import Optional
+from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.modules.auth.models import User, Role
 from app.modules.auth import schema
@@ -13,6 +13,36 @@ def get_user_by_id(db: Session, user_id: str) -> Optional[User]:
 
 def get_role_by_id(db: Session, role_id: int) -> Optional[Role]:
     return db.query(Role).filter(Role.role_id == role_id).first()
+
+def get_users(db: Session, skip: int = 0, limit: int = 100) -> List[User]:
+    return db.query(User).order_by(User.created_at.desc()).offset(skip).limit(limit).all()
+
+def create_user_by_admin(db: Session, user_data: schema.AdminUserCreate) -> User:
+    user = User(
+        user_id=str(uuid.uuid4()),
+        user_name=user_data.user_name,
+        email=user_data.email,
+        user_password=hash_password(user_data.user_password),
+        role_id=user_data.role_id,
+        active=True,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+def update_user_by_admin(
+    db: Session, user: User, user_data: schema.AdminUserUpdate
+) -> User:
+    for field, value in user_data.model_dump(exclude_unset=True).items():
+        setattr(user, field, value)
+    db.commit()
+    db.refresh(user)
+    return user
+
+def set_user_password(db: Session, user: User, new_password: str) -> None:
+    user.user_password = hash_password(new_password)
+    db.commit()
 
 def register_user(db: Session, user_data: schema.RegisterRequest) -> Optional[User]:
     # Validación: No permitir registro público con role_id = 1 (Admin/Especial)
@@ -67,4 +97,5 @@ def get_current_user_from_payload(db: Session, payload: dict) -> Optional[User]:
     user_id = payload.get("sub")
     if not user_id:
         return None
-    return get_user_by_id(db, user_id)
+    user = get_user_by_id(db, user_id)
+    return user if user and user.active else None

@@ -9,7 +9,7 @@ class Patient(Base):
 
     patient_id = Column(String(40), primary_key=True, index=True)
     full_name = Column(String(100), nullable=False)
-    age = Column(Integer, nullable=False)
+    age_months = Column(Integer, nullable=False)
     sex = Column(String(10), nullable=False)
     weight = Column(Float, nullable=True)
     height = Column(Float, nullable=True)

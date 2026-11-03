@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -20,6 +20,8 @@ class Evaluation(Base):
     temperatura_c = Column(Float, nullable=False)
     spo2 = Column(Integer, nullable=False)
     tiraje = Column(Boolean, nullable=False, default=False)
+    retraccion_xifoidea = Column(Boolean, nullable=False, default=False)
+    disociacion_toracoabdominal = Column(Boolean, nullable=False, default=False)
     aleteo_nasal = Column(Boolean, nullable=False, default=False)
     quejido_espiratorio = Column(Boolean, nullable=False, default=False)
     cianosis = Column(Boolean, nullable=False, default=False)
@@ -44,7 +46,22 @@ class Evaluation(Base):
     prob_medium = Column(Float, nullable=True)
     prob_high = Column(Float, nullable=True)
 
+    final_severity = Column(String(20), nullable=True)
+    radiographic_support = Column(String(40), nullable=True)
+    concordance = Column(String(30), nullable=True)
+    fusion_basis = Column(String(40), nullable=True)
+    fusion_explanation = Column(String(500), nullable=True)
+    recommendation_code = Column(String(50), nullable=True)
+    fusion_version = Column(String(30), nullable=True)
+    auxiliary_decision_json = Column(Text, nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    patient = relationship("app.modules.patients.models.Patient")
-    creator = relationship("app.modules.auth.models.User")
+    patient = relationship("Patient")
+    creator = relationship("User")
+    radiograph = relationship(
+        "Radiograph",
+        back_populates="evaluation",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )

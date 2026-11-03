@@ -1,18 +1,20 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class EvaluationBase(BaseModel):
     patient_id: str = Field(..., max_length=40)
-    edad_meses: int = Field(..., ge=0, le=216)
+    edad_meses: int = Field(..., ge=0, le=72)
     peso_kg: float = Field(..., gt=0, le=150)
     fr: int = Field(..., ge=0, le=120)
     fc: int = Field(..., ge=0, le=250)
     temperatura_c: float = Field(..., ge=30, le=45)
     spo2: int = Field(..., ge=0, le=100)
     tiraje: bool = False
+    retraccion_xifoidea: bool = False
+    disociacion_toracoabdominal: bool = False
     aleteo_nasal: bool = False
     quejido_espiratorio: bool = False
     cianosis: bool = False
@@ -38,13 +40,27 @@ class EvaluationCreate(EvaluationBase):
 
 
 class EvaluationResponse(EvaluationBase):
+    model_config = ConfigDict(from_attributes=True)
+
     evaluation_id: str
     created_by: str
     severity_tabular: Optional[str] = None
     prob_low: Optional[float] = None
     prob_medium: Optional[float] = None
     prob_high: Optional[float] = None
+    final_severity: Optional[str] = None
+    radiographic_support: Optional[str] = None
+    concordance: Optional[str] = None
+    fusion_basis: Optional[str] = None
+    fusion_explanation: Optional[str] = None
+    recommendation_code: Optional[str] = None
+    fusion_version: Optional[str] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+
+class EvaluationPage(BaseModel):
+    items: list[EvaluationResponse]
+    total: int
+    page: int
+    page_size: int
+    pages: int

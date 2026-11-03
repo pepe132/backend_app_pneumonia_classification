@@ -1,5 +1,8 @@
 # Sistema inteligente de apoyo clínico para la clasificación de severidad en neumonía pediátrica mediante modelos de Machine Learning y Deep Learning
 
+> Consulta [`docs/seguimiento_backend.md`](docs/seguimiento_backend.md) para ver
+> el estado actualizado, los bloques terminados y los siguientes pendientes.
+
 ## 1. Descripción general del proyecto
 
 El presente proyecto consiste en el desarrollo de una aplicación web de apoyo clínico orientada a la clasificación de severidad en neumonía pediátrica. El sistema permitirá al especialista registrar pacientes, capturar datos clínicos mediante formularios estructurados y, cuando sea necesario, cargar radiografías de tórax.
